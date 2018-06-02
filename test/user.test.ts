@@ -24,10 +24,14 @@ describe("POST /register", () => {
   });
 
   beforeEach(async () => {
-    await mongoose.connection.db.dropDatabase();
+    const {db} = mongoose.connection
+    await db.dropDatabase();
+    await db.createIndex('users', {email: 1}, {unique: true});
   });
 
   afterAll(async () => {
+    const {db} = mongoose.connection
+    await db.dropCollection('users');
     await mongoose.disconnect();
   });
 
@@ -60,14 +64,14 @@ describe("POST /register", () => {
 
   it("should return 422 if user with specified email was already registered", async () => {
     const user = new User({ email, password });
-    user.save().then(async () => {
-      const res = await request(app)
-        .post("/register")
-        .send(`email=${email}&password=${password}&confirmPassword=${password}`)
-        .expect(422);
+    await user.save()
 
-      expect(res.body.errors[0].msg).to.equal("This email is already in use");
-    });
+    const res = await request(app)
+      .post("/register")
+      .send(`email=${email}&password=${password}&confirmPassword=${password}`)
+      .expect(422);
+
+    expect(res.body.errors[0].msg).to.equal("This email is already in use");
   });
 
   it.skip("should return 422 if password doesn't match password requirements", async () => {
